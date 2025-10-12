@@ -1,0 +1,88 @@
+# Xcode and Swift
+# ----------------
+## Build artifacts
+build/
+DerivedData/
+
+## Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+Package.resolved
+
+## CocoaPods (if used)
+Pods/
+*.xcworkspace
+
+## Carthage (if used)
+Carthage/Build/
+
+## Accio dependency management (if used)
+Dependencies/
+.accio/
+
+## Xcode user data
+*.xcuserdatad/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.xcscmblueprint
+
+## Xcode project files that are user‑specific
+project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+## Swift Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+## iOS specific
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Fastlane (if used)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/readme.md
+
+## App artifacts
+*.log
+*.tmp
+
+## macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+## Thumbnails
+._*
+
+## Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+## Backup files
+*.swp
+*.swo
+*~
+
+## Editor configs
+.vscode/
+*.code-workspace
+.idea/
+
+## SwiftLint/Format caches (if used)
+.swiftlint.yml
+.swiftformat
+
+# End

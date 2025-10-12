@@ -1,24 +1,25 @@
 //
 //  ContentView.swift
-//  PhotonIQ
+//  test2025
 //
-//  Created by Mike Dice on 10/12/25.
+//  Created by Mike Dice on 10/8/25.
 //
 
 import SwiftUI
+import Foundation
+import Combine
+
 
 struct ContentView: View {
+    @StateObject private var bleManager = BLEManager()
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        // PostsView()
+        BLEView(bleManager: bleManager)
     }
 }
 
 #Preview {
     ContentView()
 }
+
