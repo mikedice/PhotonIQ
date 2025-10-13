@@ -14,7 +14,6 @@ struct ContentView: View {
     @StateObject private var bleManager = BLEManager()
     
     var body: some View {
-        // PostsView()
         BLEView(bleManager: bleManager)
     }
 }

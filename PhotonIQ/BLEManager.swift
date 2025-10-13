@@ -44,10 +44,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     }
 
     func startScan() {
-        DispatchQueue.main.async {
-            self.isScanning = true
-        }
-
+        self.isScanning = true
         centralManager.scanForPeripherals(withServices: [lightServiceCBUUID], options: nil)
         print("🔍 Scanning for peripherals")
     }
@@ -72,18 +69,15 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         print("✅ Connected to \(peripheral.name ?? "Unknown")")
         peripheral.delegate = self
         peripheral.discoverServices([lightServiceCBUUID, wifiServiceUUID])
-        DispatchQueue.main.async {
-            self.connectedPeripheral = peripheral
-        }
+        self.connectedPeripheral = peripheral
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         print("❌ Disconnected from \(peripheral.name ?? "Unknown")")
-        DispatchQueue.main.async {
-            self.connectedPeripheral = nil
-            self.lightLevel = "?"
-            self.lightHistory = []
-        }
+
+        self.connectedPeripheral = nil
+        self.lightLevel = "?"
+        self.lightHistory = []
 
         // Optional: try reconnecting
         centralManager.connect(peripheral, options: nil)
@@ -118,24 +112,11 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             if characteristic.uuid == wifiSSIDsCharacteristicUUID {
                 self.wifiSSIDsCharacteristic = characteristic
             }
-            
-            // Subscribe if it's not write-only
-            //if characteristic.properties.contains(.notify) {
-            //    peripheral.setNotifyValue(true, for: characteristic)
-            //}
-
-            // Read initial value
-            //if characteristic.properties.contains(.read) {
-            //    peripheral.readValue(for: characteristic)
-            //}
         }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        //guard let value = characteristic.value else { return }
-        //let bytes = [UInt8](value)
-        //print("📬 Received data: \(bytes) from \(characteristic.uuid)")
-        // TODO: decode and publish to your UI
+
         if characteristic.uuid == CBUUID(string: "646bd4e2-0927-45ac-bf41-fd9c69aa31dd") {
             
             if let value = characteristic.value {
@@ -153,15 +134,12 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             if let value = characteristic.value {
                 let wifiSSIDsString = String(data: value, encoding: .utf8) ?? "?"
                 print("🔍 WiFi SSIDs: \(wifiSSIDsString)")
-                DispatchQueue.main.async {
-                    // wifiSSIDsString is a comma separated list of string.
-                    let ssids = wifiSSIDsString
-                        .split(separator: ",")
-                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                        .filter { !$0.isEmpty }
-                    self.wifiNetworks = ssids
-                }
-                
+                let ssids = wifiSSIDsString
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                self.wifiNetworks = ssids
+
             }
         }
     }

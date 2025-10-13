@@ -72,7 +72,19 @@ struct BLEView : View {
                 }
                 .padding()
             }
-            .navigationTitle("BLE Scanner")
+            .navigationTitle("PhotonIQ")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 0) {
+                        Text("PhotonIQ")
+                            .font(.headline)
+                        Text("Intelligent Light Sensor")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
     }
 }
