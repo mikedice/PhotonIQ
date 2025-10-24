@@ -4,7 +4,8 @@ struct ConfigureWifiView: View {
     @ObservedObject var bleManager: BLEManager
     @Environment(\.dismiss) private var dismiss
 
-    @State private var isScanning = false
+    @State private var selectedSSID: String? = nil
+    @State private var wifiPassword: String = ""
 
     var body: some View {
         VStack(spacing: 20) {
@@ -12,27 +13,67 @@ struct ConfigureWifiView: View {
                 .font(.title2)
 
             Button {
-                bleManager.sendWifiScanCommand()
-                isScanning = true
+                bleManager.startWifiScan()
             } label: {
-                Text(isScanning ? "Scanning…" : "Start Scan")
+                Text(bleManager.isScanningWifi ? "Scanning…" : "Start Scan")
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(isScanning ? Color.orange : Color.blue)
+                    .background(bleManager.isScanningWifi ? Color.orange : Color.blue)
                     .foregroundColor(.white)
                     .cornerRadius(8)
             }
-            .disabled(isScanning)
+            .disabled(bleManager.isScanningWifi)
             .padding(.horizontal)
 
             if !bleManager.wifiNetworks.isEmpty {
                 List(bleManager.wifiNetworks, id: \.self) { ssid in
-                    Text(ssid)
+                    HStack {
+                        Text(ssid)
+                        if selectedSSID == ssid {
+                            Spacer()
+                            Image(systemName: "checkmark.circle.fill").foregroundColor(.accentColor)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedSSID = ssid
+                    }
                 }
                 .listStyle(.inset)
-            } else if isScanning {
+            } else if bleManager.isScanningWifi {
                 ProgressView("Searching for networks…")
                     .padding()
+            }
+
+            if let ssid = selectedSSID {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Use this Wi‑Fi Network").font(.headline)
+                    Text("SSID: \(ssid)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    SecureField("Password", text: $wifiPassword)
+                        .textContentType(.password)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .padding(10)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(8)
+
+                    Button {
+                        bleManager.sendWifiCredentials(ssid: ssid, password: wifiPassword)
+                    } label: {
+                        Text("Send Credentials")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                    .disabled(ssid.isEmpty)
+                }
+                .padding()
+                .transition(.opacity)
             }
 
             Spacer()
@@ -43,3 +84,4 @@ struct ConfigureWifiView: View {
         .padding()
     }
 }
+
