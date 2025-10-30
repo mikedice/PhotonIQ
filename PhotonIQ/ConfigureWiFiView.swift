@@ -12,6 +12,17 @@ struct ConfigureWifiView: View {
             Text("Configure Device Wi-Fi")
                 .font(.title2)
 
+            if bleManager.isWifiConnected {
+                HStack(spacing: 6) {
+                    Image(systemName: "wifi")
+                        .foregroundStyle(.green)
+                    Text("Connected to Wi‑Fi \(bleManager.wifiConnectedToSSID)")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+            }
+
             Button {
                 bleManager.startWifiScan()
             } label: {
@@ -84,4 +95,3 @@ struct ConfigureWifiView: View {
         .padding()
     }
 }
-

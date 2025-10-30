@@ -25,6 +25,20 @@ struct BLEView : View {
                     Text("✅ Connected to: \(connected.name ?? "Unnamed")")
                         .foregroundColor(.green)
                         .padding(.bottom)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "circle.fill")
+                            .foregroundStyle(bleManager.isWifiConnected ? .green : .red)
+                        if bleManager.isWifiConnected {
+                            Text("WiFi: \(bleManager.wifiConnectedToSSID.isEmpty ? "(SSID unknown)" : bleManager.wifiConnectedToSSID)")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("WiFi Not connected")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .font(.subheadline)
+                    .padding(.bottom, 8)
                 }
 
                 List(bleManager.discoveredPeripherals, id: \.identifier) { peripheral in

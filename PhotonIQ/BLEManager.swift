@@ -21,11 +21,17 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     
     @Published var wifiNetworks: [String] = []
     @Published var isScanningWifi = false
+    @Published var isWifiConnected = false
+    @Published var wifiConnectedToSSID = ""
     let wifiServiceUUID = CBUUID(string: "458800E6-FC10-46BD-8CDA-7F0F74BB1DBF")
     let wifiSSIDsCharacteristicUUID = CBUUID(string: "B30041A1-23DF-473A-AEEC-0C8514514B03")
     let wifiSSIDScanCommandCharacteristicUUID  = CBUUID(string: "5F8B1E42-1A56-4B5A-8026-8B15BC7EE5F3")
+    let wifiConnectedSSIDCharacteristicUUID = CBUUID(string: "A1B2C3D4-E5F6-4789-ABCD-EF0123456789")
+    let wifiConnectedStatusCharacteristicUUID = CBUUID(string: "12345678-9ABC-DEF0-1234-56789ABCDEF0")
     var wifiSSIDsCharacteristic: CBCharacteristic!
     @Published var wifiSSIDScanCommandCharacteristic: CBCharacteristic?
+    var wifiConnectedSSIDCharacteristic: CBCharacteristic!
+    var wifiConnectedStatusCharacteristic: CBCharacteristic!
     
     
     let lightServiceCBUUID = CBUUID(string: "3d80c0aa-56b9-458f-82a1-12ce0310e076")
@@ -109,7 +115,11 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             }
             else if service.uuid == wifiServiceUUID {
                 print("📡 Discovered WiFi service (\(service.uuid))")
-                peripheral.discoverCharacteristics([wifiSSIDScanCommandCharacteristicUUID, wifiSSIDsCharacteristicUUID], for: service)
+                peripheral.discoverCharacteristics([wifiSSIDScanCommandCharacteristicUUID,
+                                                    wifiSSIDsCharacteristicUUID,
+                                                    wifiConnectedSSIDCharacteristicUUID,
+                                                    wifiConnectedStatusCharacteristicUUID
+                                                   ], for: service)
             }
             else if service.uuid == settingsServiceUUID {
                 print("📡 Discovered settings service (\(service.uuid))")
@@ -143,6 +153,16 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             else if characteristic.uuid == wifiSSIDsCharacteristicUUID {
                 print("🔑 Found WiFi SSIDs list characteristic: (\(characteristic.uuid))")
                 self.wifiSSIDsCharacteristic = characteristic
+                peripheral.setNotifyValue(true, for: characteristic)
+            }
+            else if characteristic.uuid == wifiConnectedSSIDCharacteristicUUID{
+                print("🔑 Found WiFi Connected SSID characteristic: (\(characteristic.uuid))")
+                self.wifiConnectedSSIDCharacteristic = characteristic
+                peripheral.setNotifyValue(true, for: characteristic)
+            }
+            else if characteristic.uuid == wifiConnectedStatusCharacteristicUUID {
+                print("🔑 Found WiFi Connected Status characteristic: (\(characteristic.uuid))")
+                self.wifiConnectedStatusCharacteristic = characteristic
                 peripheral.setNotifyValue(true, for: characteristic)
             }
             else if characteristic.uuid == sensorNameCharacteristicUUID {
@@ -183,7 +203,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                 
             }
         }
-        if characteristic.uuid == wifiSSIDsCharacteristicUUID {
+        else if characteristic.uuid == wifiSSIDsCharacteristicUUID {
             if let value = characteristic.value {
                 let wifiSSIDsString = String(data: value, encoding: .utf8) ?? "?"
                 print("🔍 WiFi SSIDs: \(wifiSSIDsString)")
@@ -194,6 +214,17 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                 self.wifiNetworks = ssids
                 self.isScanningWifi = false
 
+            }
+        }
+        else if characteristic.uuid == wifiConnectedSSIDCharacteristicUUID {
+            if let value = characteristic.value {
+                self.wifiConnectedToSSID = String(data:value, encoding: .utf8) ?? "?"
+            }
+        }
+        else if characteristic.uuid == wifiConnectedStatusCharacteristicUUID {
+            if let value = characteristic.value {
+                // sensor sends "1" if it is connected or "0" if it is not
+                self.isWifiConnected = String(data: value, encoding: .utf8) == "1" ? true : false;
             }
         }
     }
