@@ -8,46 +8,67 @@ struct LightDataPoint: Identifiable {
     let value: Double
 }
 
+protocol BLEManagerProtocol : ObservableObject
+{
+    var isScanning: Bool { get }
+    var dicoveredPeripheralInfo: [UUID: String] { get }
+    var connectedPeriperalUUID: UUID? { get }
+    var connectedPeripheralName: String? { get }
+    var lightLevel: String { get }
+    var lightHistory: [LightDataPoint] { get }
+    var wifiNetworks: [String] { get }
+    var isScanningWifi: Bool { get }
+    var isWifiConnected: Bool { get }
+    var wifiConnectedToSSID: String { get}
+    var canConfigureWifi: Bool { get }
+}
+
 @MainActor
-class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeripheralDelegate {
-//    var objectWillChange = ObservableObjectPublisher()
+class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeripheralDelegate, BLEManagerProtocol
+{
     
     private var centralManager: CBCentralManager!
     @Published var isScanning = false
-    @Published var discoveredPeripherals: [CBPeripheral] = []
-    @Published var connectedPeripheral: CBPeripheral?
+    @Published var dicoveredPeripheralInfo: [UUID: String] = [:]
+    @Published var connectedPeriperalUUID: UUID? = nil
+    @Published var connectedPeripheralName: String? = nil
     @Published var lightLevel: String = "?"
     @Published var lightHistory: [LightDataPoint] = []
-    
     @Published var wifiNetworks: [String] = []
     @Published var isScanningWifi = false
     @Published var isWifiConnected = false
     @Published var wifiConnectedToSSID = ""
+    @Published private(set) var canConfigureWifi: Bool = false
+    
+    private var connectedPeripheral: CBPeripheral?
+    private var discoveredPeripherals: [CBPeripheral] = []
+    private var wifiSSIDsCharacteristic: CBCharacteristic!
+    private var wifiSSIDScanCommandCharacteristic: CBCharacteristic? {
+        didSet {
+            canConfigureWifi = (wifiSSIDScanCommandCharacteristic != nil)
+        }
+    }
+    
     let wifiServiceUUID = CBUUID(string: "458800E6-FC10-46BD-8CDA-7F0F74BB1DBF")
     let wifiSSIDsCharacteristicUUID = CBUUID(string: "B30041A1-23DF-473A-AEEC-0C8514514B03")
     let wifiSSIDScanCommandCharacteristicUUID  = CBUUID(string: "5F8B1E42-1A56-4B5A-8026-8B15BC7EE5F3")
     let wifiConnectedSSIDCharacteristicUUID = CBUUID(string: "A1B2C3D4-E5F6-4789-ABCD-EF0123456789")
     let wifiConnectedStatusCharacteristicUUID = CBUUID(string: "12345678-9ABC-DEF0-1234-56789ABCDEF0")
-    var wifiSSIDsCharacteristic: CBCharacteristic!
-    @Published var wifiSSIDScanCommandCharacteristic: CBCharacteristic?
-    var wifiConnectedSSIDCharacteristic: CBCharacteristic!
-    var wifiConnectedStatusCharacteristic: CBCharacteristic!
-    
-    
     let lightServiceCBUUID = CBUUID(string: "3d80c0aa-56b9-458f-82a1-12ce0310e076")
     let lightCharacteristicUUID = CBUUID(string:"646bd4e2-0927-45ac-bf41-fd9c69aa31dd")
-    var lightCharacteristic: CBCharacteristic!;
-    
     let settingsServiceUUID = CBUUID(string:"C1D5A3B2-7E2F-4F4C-9F1D-3A2B1C0D4E5F")
     let sensorNameCharacteristicUUID = CBUUID(string:"D2C1A3B2-7E2F-4F4C-9F1D-3A2B1C0D4E5F")
     let scanIntervalCharacteristicUUID = CBUUID(string:"E3F4B5C6-8D9E-4F0A-B1C2-D3E4F5A6B7C8")
     let wifiSSIDAndPasswordCharacteristicUUID = CBUUID(string:"B2C1A3B2-7E2F-4F4C-9F1D-3A2B1C0D4E5F")
     let wifiEnabledCharacteristicUUID = CBUUID(string:"D3C1A3B2-7E2F-4F4C-9F1D-3A2B1C0D4E5F")
-    
-    @Published var sensorNameCharacteristic: CBCharacteristic?
-    @Published var scanIntervalCharacteristic: CBCharacteristic?
-    @Published var wifiSSIDandPassword: CBCharacteristic?
-    @Published var wifiEnabledCharacteristic: CBCharacteristic?
+
+    var wifiConnectedSSIDCharacteristic: CBCharacteristic!
+    var wifiConnectedStatusCharacteristic: CBCharacteristic!
+    var lightCharacteristic: CBCharacteristic!;
+    var sensorNameCharacteristic: CBCharacteristic?
+    var scanIntervalCharacteristic: CBCharacteristic?
+    var wifiSSIDandPassword: CBCharacteristic?
+    var wifiEnabledCharacteristic: CBCharacteristic?
     
     override init() {
         super.init()
@@ -75,29 +96,35 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     }
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
-        if !discoveredPeripherals.contains(where: { $0.identifier == peripheral.identifier }) {
-            discoveredPeripherals.append(peripheral)
-            print("🛰️ Found: \(peripheral.name ?? "Unknown")")
+        let identifier = peripheral.identifier
+        let name = peripheral.name ?? "Unknown"
+        if dicoveredPeripheralInfo[identifier] == nil {
+            dicoveredPeripheralInfo[identifier] = name
+            discoveredPeripherals.append(peripheral) // note if we don't hang onto a reference to the peripheral it will disconenct
+            print("🛰️ Found: \(name) with identifier \(identifier)")
 
             // Auto-connect to the first one
             centralManager.connect(peripheral, options: nil)
-        }
-        else{
-            print("Already connected to: \(peripheral.name ?? "Unknown")")
+        } else {
+            print("Already discovered: \(name)")
         }
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("✅ Connected to \(peripheral.name ?? "Unknown")")
+        stopScan()
         peripheral.delegate = self
         peripheral.discoverServices([lightServiceCBUUID, wifiServiceUUID, settingsServiceUUID])
         self.connectedPeripheral = peripheral
+        self.connectedPeriperalUUID = peripheral.identifier
+        self.connectedPeripheralName = peripheral.name ?? "Unknown"
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         print("❌ Disconnected from \(peripheral.name ?? "Unknown")")
 
         self.connectedPeripheral = nil
+        self.wifiSSIDScanCommandCharacteristic = nil
         self.lightLevel = "?"
         self.lightHistory = []
 

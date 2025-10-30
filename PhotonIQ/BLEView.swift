@@ -17,12 +17,14 @@ struct BLEView : View {
     var body: some View {
         NavigationView {
             VStack {
-                Text(bleManager.isScanning ? "🔍 Scanning..." : "🛑 Not scanning")
-                    .font(.headline)
-                    .padding()
+                if bleManager.isScanning {
+                    Text("🔍 Scanning...")
+                        .font(.headline)
+                        .padding()
+                }
 
-                if let connected = bleManager.connectedPeripheral {
-                    Text("✅ Connected to: \(connected.name ?? "Unnamed")")
+                if let name = bleManager.connectedPeripheralName {
+                    Text("✅ Connected to: \(name)")
                         .foregroundColor(.green)
                         .padding(.bottom)
 
@@ -41,17 +43,8 @@ struct BLEView : View {
                     .padding(.bottom, 8)
                 }
 
-                List(bleManager.discoveredPeripherals, id: \.identifier) { peripheral in
-                    HStack {
-                        Text(peripheral.name ?? "Unknown Device")
-                        Spacer()
-                        if peripheral == bleManager.connectedPeripheral {
-                            Text("🟢 Connected")
-                        }
-                    }
-                }
-                
-                if bleManager.wifiSSIDScanCommandCharacteristic != nil {
+                // if bleManager.wifiSSIDScanCommandCharacteristic != nil {
+                if bleManager.canConfigureWifi {
                     NavigationLink("Configure Wi-Fi") {
                         ConfigureWifiView(bleManager: bleManager)
                     }
@@ -74,17 +67,20 @@ struct BLEView : View {
                 .frame(height: 200)
                 .padding()
 
-                Button(action: {
-                    bleManager.isScanning ? bleManager.stopScan() : bleManager.startScan()
-                }) {
-                    Text(bleManager.isScanning ? "Stop Scan" : "Start Scan")
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(bleManager.isScanning ? Color.red : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
+                if !bleManager.isScanning {
+                    Button(action: {
+                        bleManager.isScanning ? bleManager.stopScan() : bleManager.startScan()
+                    }) {
+                        Text(bleManager.isScanning ? "Stop Scan" : "Start Scan")
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(bleManager.isScanning ? Color.red : Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                    .padding()
                 }
-                .padding()
+  
             }
             .navigationTitle("PhotonIQ")
             .navigationBarTitleDisplayMode(.inline)
