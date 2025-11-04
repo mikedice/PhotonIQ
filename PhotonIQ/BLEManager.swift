@@ -23,11 +23,28 @@ protocol BLEManagerProtocol : ObservableObject
     var canConfigureWifi: Bool { get }
 }
 
+// TODO: It seems like it shoudl be simple to inject this Mock BLE manager into the view
+// but turns out to be not so easy. Find a way to inject or remove this.
+@MainActor
+class MockBLEManager : NSObject, ObservableObject, BLEManagerProtocol
+{
+    @Published var isScanning: Bool = false
+    @Published var dicoveredPeripheralInfo: [UUID: String] = [:]
+    @Published var connectedPeriperalUUID: UUID? = nil
+    @Published var connectedPeripheralName: String? = nil
+    @Published var lightLevel: String = "?"
+    @Published var lightHistory: [LightDataPoint] = []
+    @Published var wifiNetworks: [String] = []
+    @Published var isScanningWifi: Bool = false
+    @Published var isWifiConnected: Bool = false
+    @Published var wifiConnectedToSSID: String = ""
+    @Published var canConfigureWifi: Bool = true
+}
+
 @MainActor
 class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeripheralDelegate, BLEManagerProtocol
 {
-    
-    private var centralManager: CBCentralManager!
+    // BLEManagerProtocol implementation
     @Published var isScanning = false
     @Published var dicoveredPeripheralInfo: [UUID: String] = [:]
     @Published var connectedPeriperalUUID: UUID? = nil
@@ -38,8 +55,9 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     @Published var isScanningWifi = false
     @Published var isWifiConnected = false
     @Published var wifiConnectedToSSID = ""
-    @Published private(set) var canConfigureWifi: Bool = false
-    
+    @Published private(set) var canConfigureWifi: Bool = false // private(set) to avoid someone setting this from outside
+
+    private var centralManager: CBCentralManager!
     private var connectedPeripheral: CBPeripheral?
     private var discoveredPeripherals: [CBPeripheral] = []
     private var wifiSSIDsCharacteristic: CBCharacteristic!
@@ -49,22 +67,10 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         }
     }
     
-    let wifiServiceUUID = CBUUID(string: "458800E6-FC10-46BD-8CDA-7F0F74BB1DBF")
-    let wifiSSIDsCharacteristicUUID = CBUUID(string: "B30041A1-23DF-473A-AEEC-0C8514514B03")
-    let wifiSSIDScanCommandCharacteristicUUID  = CBUUID(string: "5F8B1E42-1A56-4B5A-8026-8B15BC7EE5F3")
-    let wifiConnectedSSIDCharacteristicUUID = CBUUID(string: "A1B2C3D4-E5F6-4789-ABCD-EF0123456789")
-    let wifiConnectedStatusCharacteristicUUID = CBUUID(string: "12345678-9ABC-DEF0-1234-56789ABCDEF0")
-    let lightServiceCBUUID = CBUUID(string: "3d80c0aa-56b9-458f-82a1-12ce0310e076")
-    let lightCharacteristicUUID = CBUUID(string:"646bd4e2-0927-45ac-bf41-fd9c69aa31dd")
-    let settingsServiceUUID = CBUUID(string:"C1D5A3B2-7E2F-4F4C-9F1D-3A2B1C0D4E5F")
-    let sensorNameCharacteristicUUID = CBUUID(string:"D2C1A3B2-7E2F-4F4C-9F1D-3A2B1C0D4E5F")
-    let scanIntervalCharacteristicUUID = CBUUID(string:"E3F4B5C6-8D9E-4F0A-B1C2-D3E4F5A6B7C8")
-    let wifiSSIDAndPasswordCharacteristicUUID = CBUUID(string:"B2C1A3B2-7E2F-4F4C-9F1D-3A2B1C0D4E5F")
-    let wifiEnabledCharacteristicUUID = CBUUID(string:"D3C1A3B2-7E2F-4F4C-9F1D-3A2B1C0D4E5F")
 
-    var wifiConnectedSSIDCharacteristic: CBCharacteristic!
-    var wifiConnectedStatusCharacteristic: CBCharacteristic!
-    var lightCharacteristic: CBCharacteristic!;
+    var wifiConnectedSSIDCharacteristic: CBCharacteristic?
+    var wifiConnectedStatusCharacteristic: CBCharacteristic?
+    var lightCharacteristic: CBCharacteristic?;
     var sensorNameCharacteristic: CBCharacteristic?
     var scanIntervalCharacteristic: CBCharacteristic?
     var wifiSSIDandPassword: CBCharacteristic?
@@ -85,7 +91,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
 
     func startScan() {
         self.isScanning = true
-        centralManager.scanForPeripherals(withServices: [lightServiceCBUUID], options: nil)
+        centralManager.scanForPeripherals(withServices: [PhotonUUIDs.Services.light], options: nil)
         print("🔍 Scanning for peripherals")
     }
 
@@ -114,7 +120,9 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         print("✅ Connected to \(peripheral.name ?? "Unknown")")
         stopScan()
         peripheral.delegate = self
-        peripheral.discoverServices([lightServiceCBUUID, wifiServiceUUID, settingsServiceUUID])
+        peripheral.discoverServices([PhotonUUIDs.Services.light,
+                                     PhotonUUIDs.Services.wifi,
+                                     PhotonUUIDs.Services.settings])
         self.connectedPeripheral = peripheral
         self.connectedPeriperalUUID = peripheral.identifier
         self.connectedPeripheralName = peripheral.name ?? "Unknown"
@@ -136,26 +144,27 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         guard let services = peripheral.services else { return }
         for service in services {
             
-            if service.uuid == lightServiceCBUUID {
+            if service.uuid == PhotonUUIDs.Services.light {
                 print("📡 Discovered light service service (\(service.uuid))")
-                peripheral.discoverCharacteristics([lightCharacteristicUUID], for: service)
+                peripheral.discoverCharacteristics([PhotonUUIDs.Characteristics.lightLevel], for: service)
             }
-            else if service.uuid == wifiServiceUUID {
+            else if service.uuid == PhotonUUIDs.Services.wifi {
                 print("📡 Discovered WiFi service (\(service.uuid))")
-                peripheral.discoverCharacteristics([wifiSSIDScanCommandCharacteristicUUID,
-                                                    wifiSSIDsCharacteristicUUID,
-                                                    wifiConnectedSSIDCharacteristicUUID,
-                                                    wifiConnectedStatusCharacteristicUUID
-                                                   ], for: service)
+                peripheral.discoverCharacteristics([PhotonUUIDs.Characteristics.wifiScanCommand,
+                                                    PhotonUUIDs.Characteristics.wifiSSIDs,
+                                                    PhotonUUIDs.Characteristics.wifiConnectedSSID,
+                                                    PhotonUUIDs.Characteristics.wifiConnectedStatus],
+                                                   for: service)
             }
-            else if service.uuid == settingsServiceUUID {
+            else if service.uuid == PhotonUUIDs.Services.settings  {
                 print("📡 Discovered settings service (\(service.uuid))")
                 peripheral.discoverCharacteristics([
-                    sensorNameCharacteristicUUID,
-                    scanIntervalCharacteristicUUID,
-                    wifiSSIDAndPasswordCharacteristicUUID,
-                    wifiEnabledCharacteristicUUID
+                    PhotonUUIDs.Characteristics.sensorName,
+                    PhotonUUIDs.Characteristics.scanInterval,
+                    PhotonUUIDs.Characteristics.wifiSSIDAndPassword,
+                    PhotonUUIDs.Characteristics.wifiEnabled
                 ], for: service)
+
             }
             else{
                 print("Found unknown service \(service.uuid)")
@@ -166,46 +175,45 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         guard let characteristics = service.characteristics else { return }
         for characteristic in characteristics {
-            if characteristic.uuid == lightCharacteristicUUID {
+            if characteristic.uuid == PhotonUUIDs.Characteristics.lightLevel {
                 print("🔑 Found light characteristic: (\(characteristic.uuid))")
                 self.lightCharacteristic = characteristic
                 peripheral.setNotifyValue(true, for: characteristic)
                 
             }
-            else if characteristic.uuid == wifiSSIDScanCommandCharacteristicUUID {
+            else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiScanCommand {
                 print("🔑 Found WiFi Scan characteristic: (\(characteristic.uuid))")
                 print("🔑 WiFi Scan characteristic props: \(characteristic.properties)")
                 self.wifiSSIDScanCommandCharacteristic = characteristic
             }
-            else if characteristic.uuid == wifiSSIDsCharacteristicUUID {
+            else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiSSIDs {
                 print("🔑 Found WiFi SSIDs list characteristic: (\(characteristic.uuid))")
                 self.wifiSSIDsCharacteristic = characteristic
                 peripheral.setNotifyValue(true, for: characteristic)
             }
-            else if characteristic.uuid == wifiConnectedSSIDCharacteristicUUID{
+            else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiConnectedSSID{
                 print("🔑 Found WiFi Connected SSID characteristic: (\(characteristic.uuid))")
                 self.wifiConnectedSSIDCharacteristic = characteristic
                 peripheral.setNotifyValue(true, for: characteristic)
             }
-            else if characteristic.uuid == wifiConnectedStatusCharacteristicUUID {
+            else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiConnectedStatus {
                 print("🔑 Found WiFi Connected Status characteristic: (\(characteristic.uuid))")
                 self.wifiConnectedStatusCharacteristic = characteristic
                 peripheral.setNotifyValue(true, for: characteristic)
             }
-            else if characteristic.uuid == sensorNameCharacteristicUUID {
+            else if characteristic.uuid == PhotonUUIDs.Characteristics.sensorName {
                 print("🔑 Found Sensor Name characteristic: (\(characteristic.uuid))")
                 self.sensorNameCharacteristic = characteristic
             }
-            else if characteristic.uuid == scanIntervalCharacteristicUUID {
+            else if characteristic.uuid ==  PhotonUUIDs.Characteristics.scanInterval {
                 print("🔑 Found Scan Interval characteristic: (\(characteristic.uuid))")
                 self.scanIntervalCharacteristic = characteristic
             }
-            else if (characteristic.uuid == wifiSSIDAndPasswordCharacteristicUUID)
-            {
+            else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiSSIDAndPassword {
                 print("🔑 Found WiFi Set SSID characteristic: (\(characteristic.uuid))")
                 self.wifiSSIDandPassword = characteristic
             }
-            else if characteristic.uuid == wifiEnabledCharacteristicUUID{
+            else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiEnabled {
                 print("🔑 Found WiFi Enable characteristic: (\(characteristic.uuid))")
                 self.wifiEnabledCharacteristic = characteristic
             }
@@ -217,7 +225,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
 
-        if characteristic.uuid == lightCharacteristicUUID {
+        if characteristic.uuid == PhotonUUIDs.Characteristics.lightLevel {
             
             if let value = characteristic.value {
                 // Example: convert data to string or integer
@@ -230,7 +238,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                 
             }
         }
-        else if characteristic.uuid == wifiSSIDsCharacteristicUUID {
+        else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiSSIDs {
             if let value = characteristic.value {
                 let wifiSSIDsString = String(data: value, encoding: .utf8) ?? "?"
                 print("🔍 WiFi SSIDs: \(wifiSSIDsString)")
@@ -243,12 +251,12 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
 
             }
         }
-        else if characteristic.uuid == wifiConnectedSSIDCharacteristicUUID {
+        else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiConnectedSSID {
             if let value = characteristic.value {
                 self.wifiConnectedToSSID = String(data:value, encoding: .utf8) ?? "?"
             }
         }
-        else if characteristic.uuid == wifiConnectedStatusCharacteristicUUID {
+        else if characteristic.uuid == PhotonUUIDs.Characteristics.wifiConnectedStatus {
             if let value = characteristic.value {
                 // sensor sends "1" if it is connected or "0" if it is not
                 self.isWifiConnected = String(data: value, encoding: .utf8) == "1" ? true : false;
@@ -285,7 +293,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     }
     
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-        if characteristic.uuid == wifiSSIDScanCommandCharacteristicUUID {
+        if characteristic.uuid == PhotonUUIDs.Characteristics.wifiScanCommand {
             if let error = error {
                 print("❗️Wi‑Fi scan write failed: \(error)")
                 self.isScanningWifi = false

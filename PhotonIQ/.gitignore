@@ -27,6 +27,7 @@ Dependencies/
 *.xccheckout
 *.moved-aside
 *.xcscmblueprint
+*.xcbkptlist
 
 ## Xcode project files that are user‑specific
 project.xcworkspace/xcuserdata/

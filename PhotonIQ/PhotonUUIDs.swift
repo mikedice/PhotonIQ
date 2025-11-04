@@ -1,3 +1,11 @@
+//
+//  PhotonUUIDs.swift
+//  PhotonIQ
+//
+//  Created by Mike Dice on 10/31/25.
+//
+
+
 import CoreBluetooth
 
 enum PhotonUUIDs {

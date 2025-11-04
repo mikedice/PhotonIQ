@@ -68,17 +68,7 @@ struct BLEView : View {
                 .padding()
 
                 if !bleManager.isScanning {
-                    Button(action: {
-                        bleManager.isScanning ? bleManager.stopScan() : bleManager.startScan()
-                    }) {
-                        Text(bleManager.isScanning ? "Stop Scan" : "Start Scan")
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(bleManager.isScanning ? Color.red : Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
-                    .padding()
+                    
                 }
   
             }
