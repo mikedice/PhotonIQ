@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct ConfigureWifiView: View {
-    @ObservedObject var bleManager: BLEManager
+struct ConfigureWifiView<Manager: BLEManagerProtocol>: View {
+    @ObservedObject var bleManager: Manager
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedSSID: String? = nil

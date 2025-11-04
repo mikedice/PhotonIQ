@@ -8,39 +8,6 @@ struct LightDataPoint: Identifiable {
     let value: Double
 }
 
-protocol BLEManagerProtocol : ObservableObject
-{
-    var isScanning: Bool { get }
-    var dicoveredPeripheralInfo: [UUID: String] { get }
-    var connectedPeriperalUUID: UUID? { get }
-    var connectedPeripheralName: String? { get }
-    var lightLevel: String { get }
-    var lightHistory: [LightDataPoint] { get }
-    var wifiNetworks: [String] { get }
-    var isScanningWifi: Bool { get }
-    var isWifiConnected: Bool { get }
-    var wifiConnectedToSSID: String { get}
-    var canConfigureWifi: Bool { get }
-}
-
-// TODO: It seems like it shoudl be simple to inject this Mock BLE manager into the view
-// but turns out to be not so easy. Find a way to inject or remove this.
-@MainActor
-class MockBLEManager : NSObject, ObservableObject, BLEManagerProtocol
-{
-    @Published var isScanning: Bool = false
-    @Published var dicoveredPeripheralInfo: [UUID: String] = [:]
-    @Published var connectedPeriperalUUID: UUID? = nil
-    @Published var connectedPeripheralName: String? = nil
-    @Published var lightLevel: String = "?"
-    @Published var lightHistory: [LightDataPoint] = []
-    @Published var wifiNetworks: [String] = []
-    @Published var isScanningWifi: Bool = false
-    @Published var isWifiConnected: Bool = false
-    @Published var wifiConnectedToSSID: String = ""
-    @Published var canConfigureWifi: Bool = true
-}
-
 @MainActor
 class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeripheralDelegate, BLEManagerProtocol
 {

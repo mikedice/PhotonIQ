@@ -10,16 +10,20 @@ import Foundation
 import Combine
 
 
-struct ContentView: View {
-    @StateObject private var bleManager = BLEManager()
+struct ContentView<Manager: BLEManagerProtocol>: View {
+    @StateObject private var bleManager: Manager
+    
+    init(bleManager: Manager) {
+        self._bleManager = StateObject(wrappedValue: bleManager)
+    }
     
     var body: some View {
-        BLEView(bleManager: bleManager)
+       BLEView(bleManager: bleManager)
     }
 }
 
 #Preview {
     
-    ContentView()
+    ContentView(bleManager: BLEManagerMock())
 }
 

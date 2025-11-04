@@ -11,8 +11,8 @@ import Combine
 import CoreBluetooth
 import Charts
 
-struct BLEView : View {
-    @ObservedObject var bleManager: BLEManager
+struct BLEView<Manager: BLEManagerProtocol>: View {
+    @ObservedObject var bleManager:Manager
 
     var body: some View {
         NavigationView {
